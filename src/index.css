@@ -1,0 +1,349 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  background: #f7f8ff;
+}
+
+.auth-scenic-bg::before {
+  animation: authSceneZoom 24s ease-in-out infinite alternate;
+  background-image: url("https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1800&q=85");
+  background-position: center 42%;
+  background-size: cover;
+  content: "";
+  inset: -24px;
+  position: absolute;
+}
+
+.auth-bg-drift {
+  animation: authDrift 18s ease-in-out infinite alternate;
+  background:
+    linear-gradient(180deg, rgb(18 73 95 / 0.18), rgb(3 16 35 / 0.78)),
+    radial-gradient(circle at 52% 32%, rgb(255 195 172 / 0.34), transparent 28%);
+  inset: 0;
+  position: absolute;
+}
+
+.auth-bg-glow {
+  animation: authGlow 7s ease-in-out infinite alternate;
+  background: radial-gradient(circle at 52% 28%, rgb(255 196 169 / 0.34), transparent 22%);
+  inset: 0;
+  position: absolute;
+}
+
+.auth-bg-mist {
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.16), transparent);
+  filter: blur(18px);
+  height: 90px;
+  left: -30%;
+  position: absolute;
+  width: 62%;
+}
+
+.auth-bg-mist-one {
+  animation: authMist 22s linear infinite;
+  top: 24%;
+}
+
+.auth-bg-mist-two {
+  animation: authMist 30s linear infinite reverse;
+  opacity: 0.65;
+  top: 70%;
+}
+
+.auth-code-image {
+  animation: authCodeImage 20s ease-in-out infinite alternate;
+  filter: saturate(1.08);
+}
+
+.auth-panel-glow {
+  animation: authPanelGlow 6s ease-in-out infinite alternate;
+  background:
+    radial-gradient(circle at 18% 80%, rgb(37 99 235 / 0.6), transparent 30%),
+    radial-gradient(circle at 62% 12%, rgb(96 165 250 / 0.28), transparent 26%);
+  inset: 0;
+  position: absolute;
+  z-index: 1;
+}
+
+@keyframes authSceneZoom {
+  from {
+    transform: scale(1);
+  }
+
+  to {
+    transform: scale(1.08) translate3d(-1.5%, -1%, 0);
+  }
+}
+
+@keyframes authDrift {
+  from {
+    transform: translate3d(-1%, 0, 0);
+  }
+
+  to {
+    transform: translate3d(1.5%, -1%, 0);
+  }
+}
+
+@keyframes authGlow {
+  from {
+    opacity: 0.35;
+  }
+
+  to {
+    opacity: 0.75;
+  }
+}
+
+@keyframes authMist {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(220%, 14px, 0);
+  }
+}
+
+@keyframes authCodeImage {
+  from {
+    transform: scale(1.02) translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: scale(1.09) translate3d(-2%, -1%, 0);
+  }
+}
+
+@keyframes authPanelGlow {
+  from {
+    opacity: 0.72;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+:is(
+  .card-title-font,
+  [class*='font-semibold'],
+  [class*='font-bold'],
+  [class*='font-extrabold'],
+  [class*='font-black']
+) {
+  font-family: "Segoe UI", Inter, "Helvetica Neue", Arial, sans-serif;
+  letter-spacing: 0;
+}
+
+html.dark body {
+  background: #172033;
+}
+
+.dark .bg-white,
+.dark .bg-slate-50,
+.dark .bg-slate-100,
+.dark .bg-\[\#f6f7ff\],
+.dark .bg-\[\#f6f8ff\],
+.dark .bg-\[\#f7f8ff\],
+.dark .bg-\[\#edf2ff\] {
+  background-color: #223047;
+}
+
+.dark .bg-\[\#dfe8ff\],
+.dark .bg-\[\#d9dcff\],
+.dark .bg-\[\#d9e2ff\],
+.dark .bg-\[\#e6eeff\],
+.dark .bg-\[\#e7eeff\],
+.dark .bg-\[\#eaf0ff\],
+.dark .bg-\[\#edefff\],
+.dark .bg-\[\#edf0ff\],
+.dark .bg-\[\#edf3ff\],
+.dark .bg-\[\#eef0ff\],
+.dark .bg-\[\#f1f4ff\],
+.dark .bg-\[\#fffaf5\] {
+  background-color: #2d3d56;
+}
+
+.dark .bg-slate-200,
+.dark .bg-slate-300,
+.dark .bg-\[\#cbd5ff\],
+.dark .bg-\[\#d7ecff\],
+.dark .bg-\[\#d8c0ff\],
+.dark .bg-\[\#e6d4ff\] {
+  background-color: #3a4c67;
+}
+
+.dark .border-white,
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-slate-300 {
+  border-color: #4e6380;
+}
+
+.dark .text-\[\#151a33\],
+.dark .text-slate-900,
+.dark .text-slate-950 {
+  color: #f8fafc;
+}
+
+.dark .text-slate-700,
+.dark .text-slate-800 {
+  color: #edf2f7;
+}
+
+.dark .text-slate-400,
+.dark .text-slate-500,
+.dark .text-slate-600 {
+  color: #cbd8e8;
+}
+
+.dark .text-\[\#1f22e8\],
+.dark .text-\[\#2114c7\],
+.dark .text-\[\#2114e8\],
+.dark .text-\[\#2d2be8\],
+.dark .text-\[\#2f2bdc\],
+.dark .text-\[\#302be2\],
+.dark .text-\[\#332bdc\],
+.dark .text-\[\#332fe0\],
+.dark .text-\[\#4442f0\] {
+  color: #c7d2fe;
+}
+
+.dark .text-\[\#064f60\],
+.dark .text-\[\#075a73\],
+.dark .text-\[\#086e80\] {
+  color: #a5f3fc;
+}
+
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: #1b273a;
+  border-color: #52657f;
+  color: #f8fafc;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #b8c5d8;
+}
+
+.dark input:focus,
+.dark select:focus,
+.dark textarea:focus {
+  border-color: #a5b4fc;
+  box-shadow: 0 0 0 4px rgb(165 180 252 / 0.18);
+}
+
+.dark option {
+  background-color: #1b273a;
+  color: #f8fafc;
+}
+
+.dark thead,
+.dark .hover\:bg-slate-50\/70:hover {
+  background-color: #2d3d56;
+}
+
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #4e6380;
+}
+
+.dark .ring-indigo-100,
+.dark .ring-violet-100 {
+  --tw-ring-color: rgb(165 180 252 / 0.24);
+}
+
+.dark .bg-white\/50,
+.dark .bg-white\/92 {
+  background-color: rgb(34 48 71 / 0.88);
+}
+
+.dark .bg-cyan-100,
+.dark .bg-cyan-200,
+.dark .bg-cyan-300 {
+  background-color: #155e75;
+  color: #ecfeff;
+}
+
+.dark .bg-violet-50,
+.dark .bg-violet-100 {
+  background-color: #37305f;
+}
+
+.dark .text-violet-600,
+.dark .text-violet-700 {
+  color: #ddd6fe;
+}
+
+.dark .bg-amber-500,
+.dark .bg-rose-500,
+.dark .bg-emerald-600,
+.dark .bg-cyan-600 {
+  color: #ffffff;
+}
+
+.dark .rounded-full.bg-\[\#edf0ff\],
+.dark .rounded-lg.bg-\[\#edf0ff\],
+.dark .rounded-xl.bg-\[\#edf0ff\] {
+  background-color: #334766;
+}
+
+.dark .border-dashed {
+  border-color: #6f82a0;
+}
+
+.dark .line-through {
+  color: #aebbd0;
+}
+
+.dark [class*='shadow-slate'],
+.dark [class*='shadow-indigo'],
+.dark [class*='shadow-violet'] {
+  --tw-shadow-color: transparent;
+  --tw-shadow: 0 0 #0000;
+  --tw-shadow-colored: 0 0 #0000;
+}
+
+.dark article,
+.dark section.rounded-2xl,
+.dark form.rounded-xl,
+.dark aside.rounded-2xl {
+  outline: 1px solid rgb(78 99 128 / 0.72);
+  outline-offset: -1px;
+}
+
+.dark article,
+.dark article:hover {
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.dark article *,
+.dark article *:hover {
+  box-shadow: none !important;
+}
+
+.dark .shadow-sm,
+.dark .shadow-md,
+.dark .shadow-lg,
+.dark .shadow-xl,
+.dark .shadow-2xl {
+  box-shadow: none !important;
+}
+
+.dark a:hover,
+.dark button:hover {
+  text-decoration: none;
+}
