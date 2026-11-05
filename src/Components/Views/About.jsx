@@ -7,8 +7,7 @@ import {
   faChalkboardUser,
   faClock,
 } from '@fortawesome/free-solid-svg-icons'
-import { getCourses, getUsers } from '../../lib/courseApi'
-import { getUserRole } from '../../lib/authApi'
+import { getCourses } from '../../lib/courseApi'
 
 const features = [
   {
@@ -82,19 +81,13 @@ const About = () => {
   useEffect(() => {
     let isMounted = true
 
-    Promise.allSettled([getCourses(), getUsers()])
-      .then(([coursesResult, usersResult]) => {
-        if (!isMounted) return
-
-        const courses = coursesResult.status === 'fulfilled' ? coursesResult.value : []
-        const courseInstructors = courses.map(normalizeCourseInstructor)
-        const userInstructors = usersResult.status === 'fulfilled'
-          ? usersResult.value
-            .filter((user) => getUserRole(user) === 'instructor')
-            .map((user) => normalizeInstructorUser(user, courses))
-          : []
-
-        setInstructors(uniqueInstructors([...userInstructors, ...courseInstructors]))
+    // GET /users is admin-only, so instructors are derived from the public
+    // course list instead of the user directory.
+    getCourses()
+      .then((courses) => {
+        if (isMounted) {
+          setInstructors(uniqueInstructors(courses.map(normalizeCourseInstructor)))
+        }
       })
       .catch(() => {
         if (isMounted) {

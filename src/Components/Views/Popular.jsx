@@ -1,22 +1,25 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faArrowRight,
   faCartShopping,
   faChartLine,
   faCode,
-  faMagnifyingGlass,
   faStar,
   faUsers,
 } from '@fortawesome/free-solid-svg-icons'
-import { getCourses } from '../../lib/courseApi'
+import { getCategories, getCourses } from '../../lib/courseApi'
 
-const heroStats = []
-const mostPopular = []
-const topRated = []
+const designCategoryPattern = /design|creative|art|ui|ux/i
 
-const newCourses = []
-const designCourses = []
+const numericStudents = (course) => Number(String(course.students || '0').replace(/,/g, '')) || 0
+
+const getCourseUpdatedAt = (course) => {
+  const rawDate = course?.raw?.created_at || course?.raw?.updated_at || course?.raw?.published_at
+  const date = rawDate ? new Date(rawDate) : null
+
+  return date && !Number.isNaN(date.getTime()) ? date.getTime() : 0
+}
 
 const getCourseDetailUrl = (course) => `/course-detail?course=${course.id || ''}`
 
@@ -30,19 +33,27 @@ const Rating = ({ value, reviews }) => (
 
 const Popular = () => {
   const [backendCourses, setBackendCourses] = useState([])
+  const [backendCategories, setBackendCategories] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     let isMounted = true
 
-    getCourses()
-      .then((courses) => {
-        if (isMounted) {
-          setBackendCourses(courses)
+    Promise.allSettled([getCourses(), getCategories()])
+      .then(([coursesResult, categoriesResult]) => {
+        if (!isMounted) return
+
+        setBackendCourses(coursesResult.status === 'fulfilled' ? coursesResult.value : [])
+        setBackendCategories(categoriesResult.status === 'fulfilled' ? categoriesResult.value : [])
+
+        if (coursesResult.status === 'rejected') {
+          setLoadError(`Courses could not load from /api/courses. ${coursesResult.reason.message}`)
         }
       })
-      .catch(() => {
+      .finally(() => {
         if (isMounted) {
-          setBackendCourses([])
+          setIsLoading(false)
         }
       })
 
@@ -51,19 +62,69 @@ const Popular = () => {
     }
   }, [])
 
-  const popularCourses = backendCourses.slice(0, 3).map((course) => ({
-    ...course,
-    badge: course.paid === 'Free' ? 'Free' : 'Popular',
-    reviews: course.students,
-    oldPrice: '',
-  }))
-  const ratedCourses = backendCourses.slice(0, 4)
-  const newCourseItems = backendCourses.slice(0, 2).map((course) => ({
-    ...course,
-    label: course.paid === 'Free' ? 'Free' : 'New',
-    text: course.description || course.category,
-  }))
-  const designItems = backendCourses.filter((course) => course.category === 'Design').slice(0, 4)
+  const categoryCourseCounts = useMemo(() => {
+    const counts = new Map()
+
+    backendCourses.forEach((course) => {
+      const key = course.category || ''
+      counts.set(key, (counts.get(key) || 0) + 1)
+    })
+
+    return counts
+  }, [backendCourses])
+
+  // The "Design" rail used to hardcode course.category === 'Design', which is
+  // empty unless the database happens to use that exact name. Resolve the
+  // design/creative category from the API, then fall back to the largest one.
+  const designCategoryName = useMemo(() => {
+    const fromApi = backendCategories.find((category) => designCategoryPattern.test(category.name || ''))
+
+    if (fromApi) return fromApi.name
+
+    const fallback = [...categoryCourseCounts.entries()].sort((a, b) => b[1] - a[1])[0]
+
+    return fallback ? fallback[0] : ''
+  }, [backendCategories, categoryCourseCounts])
+
+  const heroStats = useMemo(() => {
+    if (backendCourses.length === 0) return []
+
+    return [
+      { value: backendCourses.length.toLocaleString(), label: 'Courses' },
+      {
+        value: backendCourses.reduce((total, course) => total + numericStudents(course), 0).toLocaleString(),
+        label: 'Learners',
+      },
+    ]
+  }, [backendCourses])
+
+  const popularCourses = useMemo(() => [...backendCourses]
+    .sort((a, b) => numericStudents(b) - numericStudents(a))
+    .slice(0, 3)
+    .map((course) => ({
+      ...course,
+      badge: course.paid === 'Free' ? 'Free' : 'Popular',
+      reviews: course.students,
+      oldPrice: '',
+    })), [backendCourses])
+
+  const ratedCourses = useMemo(() => [...backendCourses]
+    .sort((a, b) => Number(b.rating) - Number(a.rating))
+    .slice(0, 4), [backendCourses])
+
+  const newCourseItems = useMemo(() => [...backendCourses]
+    .sort((a, b) => getCourseUpdatedAt(b) - getCourseUpdatedAt(a))
+    .slice(0, 2)
+    .map((course) => ({
+      ...course,
+      label: course.paid === 'Free' ? 'Free' : 'New',
+      text: course.description || course.category,
+    })), [backendCourses])
+
+  const designItems = useMemo(() => (designCategoryName
+    ? backendCourses.filter((course) => String(course.category) === String(designCategoryName))
+    : []
+  ).slice(0, 4), [backendCourses, designCategoryName])
 
   return (
     <main className="bg-[#f7f8ff] text-slate-950">
@@ -122,6 +183,12 @@ const Popular = () => {
           </div>
         </div>
       </section>
+
+      {loadError && (
+        <p className="mx-auto mt-8 max-w-3xl rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+          {loadError}
+        </p>
+      )}
 
       <section id="most-popular" className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="flex items-end justify-between gap-4">
@@ -230,7 +297,9 @@ const Popular = () => {
 
       <section id="design" className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
         <div>
-          <h2 className="text-3xl font-black">Most Viewed in Design</h2>
+          <h2 className="text-3xl font-black">
+            Most Viewed in {designCategoryName || 'Design'}
+          </h2>
           <p className="mt-2 text-sm text-slate-600">Creative skills for the modern digital era.</p>
         </div>
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -241,7 +310,7 @@ const Popular = () => {
                 <h3 className="mt-4 text-sm font-semibold">{course.title}</h3>
                 <p className="mt-1 text-xs text-slate-500">{course.instructor}</p>
                 <div className="mt-3">
-                  <Rating value={course.rating} reviews={course.reviews} />
+                  <Rating value={course.rating} reviews={course.students} />
                 </div>
                 <p className="mt-3 text-sm font-semibold">{course.price}</p>
               </a>
@@ -249,7 +318,9 @@ const Popular = () => {
           ))}
           {designItems.length === 0 && (
             <p className="rounded-lg border border-slate-200 bg-white p-6 text-center text-sm font-semibold text-slate-500 sm:col-span-2 lg:col-span-4">
-              No design courses yet.
+              {isLoading
+                ? 'Loading courses...'
+                : `No courses found in ${designCategoryName || 'the design category'} yet.`}
             </p>
           )}
         </div>

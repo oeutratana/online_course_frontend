@@ -1,276 +1,583 @@
-import { useEffect, useState } from "react";
-import { getCurrentUser, updateUserProfile, logout } from "../../lib/authApi";
+import { useEffect, useState } from 'react'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import {
+  faArrowRightFromBracket,
+  faBookOpen,
+  faCheck,
+  faCircleCheck,
+  faCircleUser,
+  faClock,
+  faEnvelope,
+  faGraduationCap,
+  faKey,
+  faLock,
+  faReceipt,
+  faTriangleExclamation,
+  faUser,
+} from '@fortawesome/free-solid-svg-icons'
+import { getUserProfile, updateUserProfile, logout, getUserRole } from '../../lib/authApi'
 
-const NAV_ITEMS = [
-  { key: "info", label: "User info", icon: "user" },
-//   { key: "favorites", label: "Favorites", icon: "heart" },
-//   { key: "watchlist", label: "Watchlist", icon: "star" },
-//   { key: "settings", label: "Setting", icon: "gear" },
-//   { key: "notifications", label: "Notifications", icon: "bell" },
-];
+const TABS = [
+  { key: 'account', label: 'Account', icon: faUser },
+  { key: 'security', label: 'Password', icon: faKey },
+  { key: 'activity', label: 'Activity', icon: faClock },
+]
 
-function Icon({ name, className }) {
-  const paths = {
-    user: (
-      <path d="M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-4.4 0-8 2.2-8 5v1h16v-1c0-2.8-3.6-5-8-5z" />
-    ),
-    heart: (
-      <path d="M12 20s-7-4.4-9.5-8.6C.7 8.2 2 4.8 5.2 4c1.9-.5 3.8.3 4.8 1.9C11 4.3 12.9 3.5 14.8 4c3.2.8 4.5 4.2 2.7 7.4C19 15.6 12 20 12 20z" />
-    ),
-    star: (
-      <path d="M12 2l2.9 6.3 6.9.7-5.2 4.7 1.5 6.8L12 17l-6.1 3.5 1.5-6.8L2.2 9l6.9-.7L12 2z" />
-    ),
-    gear: (
-      <path d="M12 15a3 3 0 100-6 3 3 0 000 6zm7-3a7 7 0 00-.2-1.6l2-1.5-2-3.4-2.4 1a7 7 0 00-1.4-.8L14.5 2h-5l-.5 2.7c-.5.2-1 .5-1.4.8l-2.4-1-2 3.4 2 1.5A7 7 0 002 12c0 .5.1 1.1.2 1.6l-2 1.5 2 3.4 2.4-1c.4.3.9.6 1.4.8L7 21h5l.5-2.7c.5-.2 1-.5 1.4-.8l2.4 1 2-3.4-2-1.5c.1-.5.2-1.1.2-1.6z" />
-    ),
-    bell: (
-      <path d="M12 22a2.2 2.2 0 002.2-2.2H9.8A2.2 2.2 0 0012 22zm7-6.2V11c0-3.4-1.8-6.2-5-7V3a2 2 0 10-4 0v1c-3.2.8-5 3.6-5 7v4.8L3 18v1h18v-1l-2-2.2z" />
-    ),
-  };
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-      {paths[name]}
-    </svg>
-  );
+const toNumber = (value) => {
+  const parsed = Number(value)
+
+  return Number.isFinite(parsed) ? parsed : 0
 }
 
-/**
- * Profile — "User Profile" page: sidebar nav + editable account info form.
- * Route example: /profile
- */
-export default function Profile() {
-  const [activeNav, setActiveNav] = useState("info");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState("");
+const formatDate = (value) => {
+  if (!value) return '—'
 
-  const [form, setForm] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    location: "",
-    postalCode: "",
-    avatar: "",
-  });
+  const date = new Date(value)
+
+  return Number.isNaN(date.getTime())
+    ? '—'
+    : date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+const PAYMENT_BADGE = {
+  paid: 'bg-emerald-100 text-emerald-700',
+  pending: 'bg-amber-100 text-amber-700',
+  expired: 'bg-slate-200 text-slate-600',
+  failed: 'bg-red-100 text-red-700',
+}
+
+const Profile = () => {
+  const [activeTab, setActiveTab] = useState('account')
+  const [profile, setProfile] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+
+  const [account, setAccount] = useState({ name: '', email: '' })
+  const [passwords, setPasswords] = useState({ password: '', confirmation: '' })
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    let ignore = false;
-    getCurrentUser()
+    let ignore = false
+
+    getUserProfile()
       .then((user) => {
-        if (ignore) return;
-        setForm({
-          firstName: user.firstName || user.name?.split(" ")[0] || "",
-          lastName: user.lastName || user.name?.split(" ")[1] || "",
-          email: user.email || "",
-          phone: user.phone || "",
-          location: user.location || "",
-          postalCode: user.postalCode || "",
-          avatar: user.avatar || "",
-        });
+        if (ignore) return
+
+        setProfile(user)
+        setAccount({ name: user.name || '', email: user.email || '' })
       })
-      .catch(() => {
-        if (!ignore) window.location.href = "/login";
+      .catch((err) => {
+        if (ignore) return
+
+        if (err?.status === 401) {
+          window.location.href = '/login'
+          return
+        }
+
+        setLoadError(err?.message || 'Your profile could not be loaded from the backend.')
       })
       .finally(() => {
-        if (!ignore) setLoading(false);
-      });
+        if (!ignore) setLoading(false)
+      })
+
     return () => {
-      ignore = true;
-    };
-  }, []);
-
-  const handleChange = (field) => (e) => {
-    setForm((f) => ({ ...f, [field]: e.target.value }));
-    setSaved(false);
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    setError("");
-    try {
-      await updateUserProfile(form);
-      setSaved(true);
-    } catch (err) {
-      setError(err?.message || "Couldn't save your changes. Try again.");
-    } finally {
-      setSaving(false);
+      ignore = true
     }
-  };
+  }, [])
+
+  const handleAccountChange = (field) => (event) => {
+    const { value } = event.target
+    setAccount((current) => ({ ...current, [field]: value }))
+    setSaved(false)
+    setError('')
+  }
+
+  const handlePasswordChange = (field) => (event) => {
+    const { value } = event.target
+    setPasswords((current) => ({ ...current, [field]: value }))
+    setSaved(false)
+    setError('')
+  }
+
+  const saveAccount = async () => {
+    setSaving(true)
+    setError('')
+
+    try {
+      const user = await updateUserProfile({
+        name: account.name.trim(),
+        email: account.email.trim(),
+      })
+
+      setProfile((current) => ({ ...current, ...user }))
+      setAccount({ name: user.name || '', email: user.email || '' })
+      setSaved(true)
+    } catch (err) {
+      setError(err?.message || "Couldn't save your changes. Try again.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const savePassword = async () => {
+    if (passwords.password.length < 8) {
+      setError('Your new password must be at least 8 characters long.')
+      return
+    }
+
+    if (passwords.password !== passwords.confirmation) {
+      setError('The two passwords do not match.')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+
+    try {
+      const user = await updateUserProfile({ password: passwords.password })
+
+      setProfile((current) => ({ ...current, ...user }))
+      setPasswords({ password: '', confirmation: '' })
+      setSaved(true)
+    } catch (err) {
+      setError(err?.message || "Couldn't update your password. Try again.")
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const handleLogout = async () => {
-    await logout();
-    window.location.href = "/login";
-  };
-
-  const fullName = `${form.firstName} ${form.lastName}`.trim() || "Your name";
+    await logout()
+    window.location.href = '/login'
+  }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="animate-pulse text-slate-400 font-medium">Loading profile…</div>
-      </div>
-    );
+      <main className="flex min-h-[60vh] items-center justify-center bg-[#f7f8ff] px-6 text-slate-700">
+        <div className="text-center">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#edf0ff] text-xl text-[#302be2]">
+            <FontAwesomeIcon icon={faCircleUser} />
+          </span>
+          <p className="mt-4 text-lg font-black text-[#111827]">Loading your profile...</p>
+          <p className="mt-1 text-sm">Fetching your account details from the backend.</p>
+        </div>
+      </main>
+    )
   }
 
-  return (
-    <div className="min-h-screen bg-white text-slate-800">
-      {/* Top bar */}
-      {/* <header className="flex items-center justify-between px-8 py-5 border-b border-slate-100">
-        <button className="text-slate-700" aria-label="Menu">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
-          </svg>
-        </button>
-        <div className="flex items-center gap-4">
-          <button className="text-slate-400 relative" aria-label="Notifications">
-            <Icon name="bell" className="w-5 h-5" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-orange-500" />
-          </button>
-          <div className="flex items-center gap-2">
-            <img
-              src={form.avatar || "https://i.pravatar.cc/64"}
-              alt={fullName}
-              className="w-8 h-8 rounded-full object-cover"
-            />
-            <span className="text-sm font-medium text-slate-700">{fullName}</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-        </div>
-      </header> */}
-
-      <div className="flex">
-        {/* Sidebar */}
-        <aside className="w-64 border-r border-slate-100 px-6 py-8 flex flex-col min-h-[calc(100vh-73px)]">
-          <h1 className="text-2xl font-bold text-slate-900 mb-8">User Profile</h1>
-          <nav className="flex flex-col gap-1">
-            {NAV_ITEMS.map((item) => {
-              const active = activeNav === item.key;
-              return (
-                <button
-                  key={item.key}
-                  onClick={() => setActiveNav(item.key)}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition ${
-                    active
-                      ? "text-slate-900 font-semibold border-l-2 border-orange-500 bg-orange-50/50"
-                      : "text-slate-400 hover:text-slate-600"
-                  }`}
-                >
-                  <Icon name={item.icon} className="w-4 h-4" />
-                  {item.label}
-                </button>
-              );
-            })}
-          </nav>
-
-          {/* <button
-            onClick={handleLogout}
-            className="mt-auto flex items-center gap-2 text-sm text-red-500 hover:text-red-600 px-3"
+  if (loadError) {
+    return (
+      <main className="flex min-h-[60vh] items-center justify-center bg-[#f7f8ff] px-6">
+        <div className="w-full max-w-lg rounded-xl border border-red-200 bg-white p-10 text-center shadow-sm">
+          <h1 className="text-xl font-black text-slate-900">Profile unavailable</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-600">{loadError}</p>
+          <a
+            href="/my-courses"
+            className="mt-6 inline-flex h-12 items-center justify-center rounded-lg bg-[#302be2] px-7 text-sm font-black text-white transition hover:bg-[#1916b8]"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Log out
-          </button> */}
-        </aside>
+            Back to My Courses
+          </a>
+        </div>
+      </main>
+    )
+  }
 
-        {/* Main content */}
-        <main className="flex-1 px-12 py-10">
-          {activeNav !== "info" ? (
-            <p className="text-slate-400">This section isn't built yet.</p>
-          ) : (
-            <>
-              {/* Avatar + name */}
-              <div className="flex items-center gap-6 mb-10">
-                <div className="relative">
-                  <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-amber-200 to-orange-300">
-                    <img
-                      src={form.avatar || "https://i.pinimg.com/736x/32/9b/54/329b54d07444f009b0634f438db9a449.jpg"}
-                      alt={fullName}
-                      className="w-full h-full object-cover"
-                    />
+  const role = getUserRole(profile) || 'student'
+  const enrollments = Array.isArray(profile?.enrollments) ? profile.enrollments : []
+  const lessonProgress = Array.isArray(profile?.lessonProgress) ? profile.lessonProgress : []
+  const payments = Array.isArray(profile?.payments) ? profile.payments : []
+  const authoredCourses = Array.isArray(profile?.courses) ? profile.courses : []
+
+  const completedLessons = lessonProgress.filter((item) => item?.is_completed).length
+  const totalSpent = payments
+    .filter((payment) => String(payment?.status).toLowerCase() === 'paid')
+    .reduce((sum, payment) => sum + toNumber(payment?.amount), 0)
+
+  const initials = (profile?.name || 'U')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('') || 'U'
+
+  const stats = [
+    { label: 'Enrolled courses', value: enrollments.length, icon: faBookOpen },
+    { label: 'Lessons completed', value: completedLessons, icon: faGraduationCap },
+    { label: 'Published courses', value: authoredCourses.length, icon: faClock },
+    { label: 'Total spent', value: `$${totalSpent.toFixed(2)}`, icon: faReceipt },
+  ]
+
+  return (
+    <main className="bg-[#f7f8ff] px-4 py-10 text-slate-950 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <section className="overflow-hidden rounded-xl border border-slate-300 bg-white shadow-sm">
+          <div className="h-24 w-full bg-[#302be2] sm:h-28" />
+          <div className="px-6 pb-8 sm:px-10">
+            <div className="-mt-12 flex flex-col gap-6 sm:-mt-14 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-end">
+                <span className="flex h-28 w-28 items-center justify-center rounded-full border-4 border-white bg-[#edf0ff] text-3xl font-black text-[#302be2] shadow-lg sm:h-32 sm:w-32">
+                  {initials}
+                </span>
+                <div className="pb-1">
+                  <h1 className="text-2xl font-black tracking-tight sm:text-3xl">
+                    {profile?.name || 'Your name'}
+                  </h1>
+                  <p className="mt-1 flex items-center gap-2 text-sm text-slate-600">
+                    <FontAwesomeIcon className="text-slate-400" icon={faEnvelope} />
+                    {profile?.email || 'No email on file'}
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-[#edf0ff] px-3 py-1 text-[10px] font-black uppercase tracking-wide text-[#302be2]">
+                      {role}
+                    </span>
+                    {profile?.email_verified_at ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-700">
+                        <FontAwesomeIcon icon={faCircleCheck} />
+                        Verified
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-amber-700">
+                        Unverified
+                      </span>
+                    )}
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600">
+                      Joined {formatDate(profile?.created_at)}
+                    </span>
                   </div>
-                  <label className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-orange-500 flex items-center justify-center cursor-pointer shadow">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                      <path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const url = URL.createObjectURL(file);
-                          setForm((f) => ({ ...f, avatar: url }));
-                        }
-                      }}
-                    />
-                  </label>
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-slate-900">{fullName}</h2>
-                  <p className="text-slate-400 text-sm mt-1">{form.location || "Add your location"}</p>
                 </div>
               </div>
 
-              {/* Form */}
-              <div className="grid grid-cols-2 gap-x-10 gap-y-6 max-w-2xl">
-                <Field label="Name" value={form.firstName} onChange={handleChange("firstName")} />
-                <Field label="Full Name" value={form.lastName} onChange={handleChange("lastName")} />
-                <Field
-                  label="Email Address"
-                  type="email"
-                  value={form.email}
-                  onChange={handleChange("email")}
-                />
-                <Field label="Phone Number" value={form.phone} onChange={handleChange("phone")} />
-                <Field
-                  label="Location"
-                  placeholder="e.g. New York, USA"
-                  value={form.location}
-                  onChange={handleChange("location")}
-                />
-                <Field
-                  label="Postal Code"
-                  value={form.postalCode}
-                  onChange={handleChange("postalCode")}
-                />
-              </div>
-
-              {error && <p className="mt-6 text-sm text-red-600">{error}</p>}
-
-              <div className="flex justify-center mt-10">
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="px-10 py-3.5 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-white font-medium shadow-lg shadow-orange-200 hover:opacity-90 disabled:opacity-60 transition"
+              <div className="flex flex-wrap gap-3">
+                <a
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                  href="/my-courses"
                 >
-                  {saving ? "Saving…" : saved ? "Saved ✓" : "Save Changes"}
+                  <FontAwesomeIcon icon={faBookOpen} />
+                  My Courses
+                </a>
+                <button
+                  onClick={handleLogout}
+                  type="button"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-5 text-sm font-black text-red-600 transition hover:bg-red-100"
+                >
+                  <FontAwesomeIcon icon={faArrowRightFromBracket} />
+                  Log out
                 </button>
               </div>
-            </>
-          )}
-        </main>
+            </div>
+          </div>
+        </section>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {stats.map((stat) => (
+            <article
+              key={stat.label}
+              className="flex items-center gap-4 rounded-xl border border-slate-300 bg-white p-5 shadow-sm"
+            >
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#edf0ff] text-[#302be2]">
+                <FontAwesomeIcon icon={stat.icon} />
+              </span>
+              <div>
+                <p className="text-2xl font-black leading-none">{stat.value}</p>
+                <p className="mt-1.5 text-xs font-medium text-slate-600">{stat.label}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <div className="mt-8 grid gap-6 lg:grid-cols-[15rem_1fr]">
+          <aside className="h-fit rounded-xl border border-slate-300 bg-white p-3 shadow-sm lg:sticky lg:top-6">
+            <nav className="flex gap-1 overflow-x-auto lg:flex-col">
+              {TABS.map((tab) => {
+                const active = activeTab === tab.key
+
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => {
+                      setActiveTab(tab.key)
+                      setSaved(false)
+                      setError('')
+                    }}
+                    type="button"
+                    className={`flex shrink-0 items-center gap-3 rounded-lg px-4 py-3 text-sm font-black transition ${
+                      active ? 'bg-[#302be2] text-white' : 'text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <FontAwesomeIcon icon={tab.icon} />
+                    {tab.label}
+                  </button>
+                )
+              })}
+            </nav>
+          </aside>
+
+          <section className="rounded-xl border border-slate-300 bg-white p-6 shadow-sm sm:p-9">
+            {activeTab === 'account' && (
+              <>
+                <PanelHeader
+                  title="Account details"
+                  subtitle="These values map directly to the name and email columns on the users table."
+                  icon={faUser}
+                />
+                <div className="mt-8 grid gap-6 sm:grid-cols-2">
+                  <Field
+                    label="Full name"
+                    value={account.name}
+                    onChange={handleAccountChange('name')}
+                    placeholder="John Doe"
+                    maxLength={255}
+                  />
+                  <Field
+                    label="Email address"
+                    type="email"
+                    value={account.email}
+                    onChange={handleAccountChange('email')}
+                    placeholder="john@example.com"
+                    maxLength={255}
+                  />
+                  <Field label="User ID" value={`#${profile?.id ?? '—'}`} disabled />
+                  <Field label="Role" value={role} disabled />
+                </div>
+                <ActionBar
+                  error={error}
+                  saved={saved}
+                  saving={saving}
+                  onSave={saveAccount}
+                />
+              </>
+            )}
+
+            {activeTab === 'security' && (
+              <>
+                <PanelHeader
+                  title="Change password"
+                  subtitle="Passwords are hashed by the backend with bcrypt. Minimum length is 8 characters."
+                  icon={faLock}
+                />
+                <div className="mt-8 grid gap-6 sm:grid-cols-2">
+                  <Field
+                    label="New password"
+                    type="password"
+                    value={passwords.password}
+                    onChange={handlePasswordChange('password')}
+                    placeholder="At least 8 characters"
+                    autoComplete="new-password"
+                  />
+                  <Field
+                    label="Confirm new password"
+                    type="password"
+                    value={passwords.confirmation}
+                    onChange={handlePasswordChange('confirmation')}
+                    placeholder="Repeat your new password"
+                    autoComplete="new-password"
+                  />
+                </div>
+                <ActionBar
+                  error={error}
+                  saved={saved}
+                  saving={saving}
+                  onSave={savePassword}
+                />
+              </>
+            )}
+
+            {activeTab === 'activity' && (
+              <>
+                <PanelHeader
+                  title="Learning activity"
+                  subtitle="Enrollments, lesson progress and payments returned by GET /user/profile."
+                  icon={faClock}
+                />
+
+                <div className="mt-8 space-y-8">
+                  <ActivityGroup title="Enrollments" empty="You are not enrolled in any course yet.">
+                    {enrollments.map((enrollment) => (
+                      <li
+                        key={enrollment.id}
+                        className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 py-3 last:border-b-0"
+                      >
+                        <div>
+                          <p className="text-sm font-black">
+                            {enrollment.course?.title || `Course #${enrollment.course_id ?? '—'}`}
+                          </p>
+                          <p className="mt-0.5 text-xs text-slate-500">
+                            Enrolled {formatDate(enrollment.enrolled_at)}
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-[#edf0ff] px-3 py-1 text-[10px] font-black uppercase tracking-wide text-[#302be2]">
+                          {enrollment.status || 'active'}
+                        </span>
+                      </li>
+                    ))}
+                  </ActivityGroup>
+
+                  <ActivityGroup
+                    title="Lesson progress"
+                    empty="No lessons have been started yet."
+                  >
+                    {lessonProgress.map((item) => (
+                      <li
+                        key={item.id}
+                        className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 py-3 last:border-b-0"
+                      >
+                        <div>
+                          <p className="text-sm font-black">
+                            {item.lesson?.title || `Lesson #${item.lesson_id ?? '—'}`}
+                          </p>
+                          <p className="mt-0.5 text-xs text-slate-500">
+                            {item.is_completed
+                              ? `Completed ${formatDate(item.completed_at)}`
+                              : 'In progress'}
+                          </p>
+                        </div>
+                        <span
+                          className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide ${
+                            item.is_completed
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-amber-100 text-amber-700'
+                          }`}
+                        >
+                          {item.is_completed ? 'Completed' : 'Active'}
+                        </span>
+                      </li>
+                    ))}
+                  </ActivityGroup>
+
+                  <ActivityGroup title="Payments" empty="No payments have been recorded yet.">
+                    {payments.map((payment) => {
+                      const status = String(payment.status || 'pending').toLowerCase()
+
+                      return (
+                        <li
+                          key={payment.id}
+                          className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 py-3 last:border-b-0"
+                        >
+                          <div>
+                            <p className="text-sm font-black">
+                              {payment.course?.title || `Course #${payment.course_id ?? '—'}`}
+                            </p>
+                            <p className="mt-0.5 text-xs text-slate-500">
+                              {payment.method || 'PayWay'} · {formatDate(payment.paid_at || payment.created_at)}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-black text-[#2114e8]">
+                              ${toNumber(payment.amount).toFixed(2)}
+                            </span>
+                            <span
+                              className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide ${
+                                PAYMENT_BADGE[status] || 'bg-slate-100 text-slate-600'
+                              }`}
+                            >
+                              {status}
+                            </span>
+                          </div>
+                        </li>
+                      )
+                    })}
+                  </ActivityGroup>
+                </div>
+              </>
+            )}
+          </section>
+        </div>
+      </div>
+    </main>
+  )
+}
+
+function PanelHeader({ title, subtitle, icon }) {
+  return (
+    <div className="flex items-start gap-4 border-b border-slate-200 pb-6">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#edf0ff] text-[#302be2]">
+        <FontAwesomeIcon icon={icon} />
+      </span>
+      <div>
+        <h2 className="text-xl font-black tracking-tight sm:text-2xl">{title}</h2>
+        <p className="mt-1 text-sm leading-6 text-slate-600">{subtitle}</p>
       </div>
     </div>
-  );
+  )
 }
 
-function Field({ label, value, onChange, type = "text", placeholder }) {
+function ActivityGroup({ title, empty, children }) {
+  const items = Array.isArray(children) ? children.filter(Boolean) : children
+  const hasItems = Array.isArray(items) ? items.length > 0 : Boolean(items)
+
   return (
-    <label className="block">
-      <span className="block text-xs text-slate-400 mb-1.5">{label}</span>
+    <div>
+      <h3 className="text-sm font-black uppercase tracking-wide text-slate-500">{title}</h3>
+      {hasItems ? (
+        <ul className="mt-3">{items}</ul>
+      ) : (
+        <p className="mt-3 rounded-lg border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">
+          {empty}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function ActionBar({ error, saved, saving, onSave }) {
+  return (
+    <>
+      {error && (
+        <p className="mt-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          <FontAwesomeIcon className="mt-0.5" icon={faTriangleExclamation} />
+          {error}
+        </p>
+      )}
+
+      {saved && (
+        <p className="mt-6 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
+          <FontAwesomeIcon icon={faCheck} />
+          Saved successfully.
+        </p>
+      )}
+
+      <div className="mt-8 flex justify-end border-t border-slate-200 pt-6">
+        <button
+          onClick={onSave}
+          disabled={saving}
+          type="button"
+          className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-[#302be2] px-7 text-sm font-black text-white transition hover:bg-[#1916b8] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <FontAwesomeIcon icon={faCheck} />
+          {saving ? 'Saving...' : 'Save changes'}
+        </button>
+      </div>
+    </>
+  )
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  type = 'text',
+  placeholder,
+  disabled,
+  maxLength,
+  autoComplete,
+}) {
+  return (
+    <label className="grid gap-2 text-sm font-medium text-slate-950">
+      <span>{label}</span>
       <input
         type={type}
-        value={value}
+        value={value ?? ''}
         onChange={onChange}
         placeholder={placeholder}
-        className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:bg-white transition"
+        disabled={disabled}
+        maxLength={maxLength}
+        autoComplete={autoComplete}
+        className="h-12 rounded-lg border border-slate-300 bg-white px-4 text-base font-normal text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#302be2] focus:ring-4 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
       />
     </label>
-  );
+  )
 }
+
+export default Profile

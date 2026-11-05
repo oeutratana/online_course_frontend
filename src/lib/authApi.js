@@ -1,4 +1,4 @@
-export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000'
+export const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL ?? '').replace(/\/+$/, '')
 export const API_BASE_URL = import.meta.env.VITE_API_URL || `${BACKEND_URL}/api`
 
 const getErrorMessage = (data, fallback) => {
@@ -98,6 +98,15 @@ export const getCsrfCookie = async () => {
   }
 }
 
+export class ApiError extends Error {
+  constructor(message, status, data) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.data = data
+  }
+}
+
 export const apiRequest = async (path, options = {}) => {
   const authMode = localStorage.getItem('auth_mode')
   const includeCredentials = options.includeCredentials ?? authMode === 'cookie'
@@ -125,10 +134,60 @@ export const apiRequest = async (path, options = {}) => {
       clearAuthSession()
     }
 
-    throw new Error(getErrorMessage(data, 'Something went wrong. Please try again.'))
+    throw new ApiError(
+      getErrorMessage(data, 'Something went wrong. Please try again.'),
+      response.status,
+      data,
+    )
   }
 
   return data
+}
+
+const getResponseFilename = (contentDisposition) => {
+  if (!contentDisposition) return ''
+
+  const encoded = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i)
+  if (encoded?.[1]) return decodeURIComponent(encoded[1].replace(/^"|"$/g, '').trim())
+
+  const plain = contentDisposition.match(/filename="?([^";]+)"?/i)
+  return plain?.[1]?.trim() || ''
+}
+
+export const apiBlobRequest = async (path, options = {}) => {
+  const authMode = localStorage.getItem('auth_mode')
+  const includeCredentials = options.includeCredentials ?? authMode === 'cookie'
+  const includeXsrf = includeCredentials && options.includeXsrf !== false
+  const headers = {
+    ...getAuthHeaders({ includeXsrf }),
+    ...options.headers,
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    credentials: includeCredentials ? 'include' : 'omit',
+    headers,
+  })
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+
+    if (response.status === 401) {
+      clearAuthSession()
+    }
+
+    throw new ApiError(
+      getErrorMessage(data, 'The file could not be downloaded. Please try again.'),
+      response.status,
+      data,
+    )
+  }
+
+  return {
+    blob: await response.blob(),
+    filename: getResponseFilename(response.headers.get('content-disposition')),
+    contentType: response.headers.get('content-type') || '',
+  }
 }
 
 export const authRequest = async (path, body) => {
@@ -182,7 +241,7 @@ const isValidAuthUser = (user) => Boolean(
     && (user.id || user.email || user.name)
 )
 
-const getStoredAuthUser = () => {
+export const getStoredAuthUser = () => {
   try {
     return JSON.parse(localStorage.getItem('auth_user') || 'null')
   } catch {
@@ -232,6 +291,45 @@ export const logout = async () => {
   }
 }
 
+export const getGoogleAuthUrl = (redirectPath = '') => {
+  const configuredUrl = (import.meta.env.VITE_GOOGLE_AUTH_URL || '').trim()
+  const fallbackUrl = `${BACKEND_URL}/api/auth/google/redirect`
+
+  let authUrl
+  try {
+    authUrl = new URL(configuredUrl || fallbackUrl, window.location.origin)
+  } catch {
+    authUrl = new URL('/api/auth/google/redirect', window.location.origin)
+  }
+
+  if (redirectPath?.startsWith('/') && !redirectPath.startsWith('//')) {
+    authUrl.searchParams.set('redirect', redirectPath)
+  }
+
+  return authUrl.toString()
+}
+
+export const exchangeGoogleCode = (code) => apiRequest('/auth/google/exchange', {
+  method: 'POST',
+  body: JSON.stringify({ code }),
+  includeCredentials: false,
+  includeXsrf: false,
+})
+
+export const requestPasswordReset = (email) => apiRequest('/auth/forgot-password', {
+  method: 'POST',
+  body: JSON.stringify({ email }),
+  includeCredentials: false,
+  includeXsrf: false,
+})
+
+export const resetPassword = ({ token, email, password, password_confirmation }) => apiRequest('/auth/reset-password', {
+  method: 'POST',
+  body: JSON.stringify({ token, email, password, password_confirmation }),
+  includeCredentials: false,
+  includeXsrf: false,
+})
+
 export const getRedirectPath = () => {
   const redirectPath = new URLSearchParams(window.location.search).get('redirect')
 
@@ -249,14 +347,15 @@ export const getLoginRedirectPath = (user) => {
 }
 
 export const updateUserProfile = async (profile) => {
-  const name = `${profile.firstName || ''} ${profile.lastName || ''}`.trim()
+  const payload = {}
+
+  if (profile.name) payload.name = profile.name
+  if (profile.email) payload.email = profile.email
+  if (profile.password) payload.password = profile.password
 
   const data = await apiRequest('/user/profile', {
     method: 'PUT',
-    body: JSON.stringify({
-      ...profile,
-      name,
-    }),
+    body: JSON.stringify(payload),
   })
 
   const user = getResponseUser(data) || data
@@ -265,5 +364,18 @@ export const updateUserProfile = async (profile) => {
     localStorage.setItem('auth_user', JSON.stringify(user))
   }
 
-  return data
+  return user
+}
+
+// GET /user/profile returns the authenticated user eager-loaded with courses,
+// enrollments.course, lessonProgress.lesson and payments.course.
+export const getUserProfile = async () => {
+  const data = await apiRequest('/user/profile')
+  const user = getResponseUser(data) || data
+
+  if (isValidAuthUser(user)) {
+    localStorage.setItem('auth_user', JSON.stringify(user))
+  }
+
+  return user
 }

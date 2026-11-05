@@ -106,9 +106,11 @@ const CategoryPage = ({ searchQuery = '' }) => {
         slug: makeSlug(formData.name),
         description: formData.description,
       }
-      const savedCategory = editingCategory?.id
-        ? await updateCategory(editingCategory.id, payload)
-        : await createCategory(payload)
+      if (editingCategory?.id) {
+        await updateCategory(editingCategory.id, payload)
+      } else {
+        await createCategory(payload)
+      }
       await loadCategoryData()
 
       const successMessage = editingCategory ? 'Category updated in database.' : 'Category added to database.'

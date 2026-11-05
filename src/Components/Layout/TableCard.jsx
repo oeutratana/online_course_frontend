@@ -59,12 +59,12 @@ const TableCard = ({ courses = [], purchases = getPurchasedCourses(), isAuthenti
                   </span>
                 </div>
                 <button
-                  className={`mt-4 h-10 w-full rounded-lg text-sm font-black transition ${unlocked ? 'bg-[#302be2] text-white hover:bg-[#1916b8]' : 'cursor-not-allowed bg-slate-200 text-slate-500'}`}
-                  disabled={!unlocked}
+                  className={`mt-4 h-10 w-full rounded-lg text-sm font-black transition ${unlocked ? 'bg-[#302be2] text-white hover:bg-[#1916b8]' : 'border-2 border-[#302be2] bg-white text-[#302be2] hover:bg-[#edf0ff]'}`}
+                  
                   onClick={() => onWatchCourse?.(course)}
                   type="button"
                 >
-                  {unlocked ? 'Watch Video' : 'Buy to Watch'}
+                  {unlocked ? 'Watch Video' : 'Get QR to Watch'}
                 </button>
               </div>
             </article>

@@ -256,9 +256,23 @@ const CoursesPage = ({ searchQuery = '' }) => {
   useEffect(() => {
     let isMounted = true
 
-    Promise.all([getCourses(), getCategories(), getPayments(), getLessons(), getEnrollments()])
-      .then(([backendCourses, backendCategories, payments, lessons, enrollments]) => {
+    Promise.allSettled([getCourses(), getCategories(), getPayments(), getLessons(), getEnrollments()])
+      .then(([coursesResult, categoriesResult, paymentsResult, lessonsResult, enrollmentsResult]) => {
         if (!isMounted) return
+
+        const backendCourses = coursesResult.status === 'fulfilled' ? coursesResult.value : []
+        const backendCategories = categoriesResult.status === 'fulfilled' ? categoriesResult.value : []
+        const payments = paymentsResult.status === 'fulfilled' ? paymentsResult.value : []
+        const lessons = lessonsResult.status === 'fulfilled' ? lessonsResult.value : []
+        const enrollments = enrollmentsResult.status === 'fulfilled' ? enrollmentsResult.value : []
+
+        const failed = [coursesResult, categoriesResult, paymentsResult, lessonsResult, enrollmentsResult]
+          .filter((result) => result.status === 'rejected')
+
+        if (failed.length > 0) {
+          setFormError(`Some course data could not load. ${failed.map((result) => result.reason?.message).filter(Boolean).join(' ')}`)
+        }
+
         const savedCourseVideos = getSavedCourseVideos()
         const localPurchases = getLocalPurchases()
 
@@ -274,6 +288,18 @@ const CoursesPage = ({ searchQuery = '' }) => {
           })
 
           setCourseItems(mappedCourses)
+
+          const requestedEditId = new URLSearchParams(window.location.search).get('edit')
+          const requestedCourse = requestedEditId
+            ? mappedCourses.find((course) => String(course.id) === String(requestedEditId))
+            : null
+
+          if (requestedCourse) {
+            setEditingCourse(requestedCourse)
+            setFormData(getFormFromCourse(requestedCourse))
+            setFormError('')
+            setFormSuccess('')
+          }
         }
 
         if (backendCategories.length > 0) {

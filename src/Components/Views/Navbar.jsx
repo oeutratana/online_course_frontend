@@ -16,7 +16,7 @@ const Navbar = () => {
     return window.matchMedia('(prefers-color-scheme: dark)').matches
   })
   const [user, setUser] = useState(null)
-  const [isAuthChecking, setIsAuthChecking] = useState(true)
+  const [isAuthChecking, setIsAuthChecking] = useState(() => hasAuthSession())
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [cartCount, setCartCount] = useState(0)
   const pathname = window.location.pathname
@@ -42,7 +42,6 @@ const Navbar = () => {
     let isMounted = true
 
     if (!hasAuthSession()) {
-      setIsAuthChecking(false)
       return undefined
     }
 
@@ -69,7 +68,6 @@ const Navbar = () => {
 
   useEffect(() => {
     if (!user) {
-      setCartCount(0)
       return undefined
     }
 
@@ -91,7 +89,7 @@ const Navbar = () => {
     if (pathname !== '/cart' || !user) return
 
     clearUnseenCartCount(user)
-    setCartCount(0)
+    window.dispatchEvent(new Event('cart-unseen-change'))
   }, [pathname, user])
 
   const handleLogout = async () => {
@@ -209,6 +207,11 @@ const Navbar = () => {
           <a className={linkClass('/courses')} href="/courses">
             Courses
           </a>
+          {user && (
+            <a className={linkClass('/my-courses')} href="/my-courses">
+              My Courses
+            </a>
+          )}
           <a className={linkClass('/popular')} href="/popular">
             Popular
           </a>
@@ -298,6 +301,11 @@ const Navbar = () => {
               <a className={mobileLinkClass('/courses')} href="/courses">
                 Courses
               </a>
+              {user && (
+                <a className={mobileLinkClass('/my-courses')} href="/my-courses">
+                  My Courses
+                </a>
+              )}
               <a className={mobileLinkClass('/popular')} href="/popular">
                 Popular
               </a>

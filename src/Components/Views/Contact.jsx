@@ -76,12 +76,11 @@ const Contact = () => {
 
             <label className="mt-6 grid gap-2 text-sm font-medium text-slate-950">
               Subject
-              <select className="h-12 rounded-lg border border-slate-300 bg-white px-4 text-base font-normal text-slate-950 outline-none transition focus:border-[#302be2] focus:ring-4 focus:ring-indigo-100">
-                <option>Course Inquiry</option>
-                <option>Technical Support</option>
-                <option>Billing Question</option>
-                <option>Partnership</option>
-              </select>
+              <input
+                className="h-12 rounded-lg border border-slate-300 bg-white px-4 text-base font-normal text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#302be2] focus:ring-4 focus:ring-indigo-100"
+                placeholder="Course Inquiry"
+                type="text"
+              />
             </label>
 
             <label className="mt-6 grid gap-2 text-sm font-medium text-slate-950">
