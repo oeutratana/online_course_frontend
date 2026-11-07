@@ -65,7 +65,10 @@ const Login = () => {
     setIsSubmitting(true)
 
     try {
-      const data = await authRequest('/login', formData)
+      const data = await authRequest('/login', {
+        ...formData,
+        email: formData.email.trim(),
+      })
       const user = getResponseUser(data)
 
       saveAuthSession(data)
@@ -139,7 +142,9 @@ const Login = () => {
                 <div className="relative">
                   <FontAwesomeIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-base text-slate-500" icon={faEnvelope} />
                   <input
+                    autoComplete="email"
                     className="h-12 w-full rounded-lg border border-slate-300 bg-white pl-11 pr-4 text-base text-slate-800 outline-none transition placeholder:text-slate-500 focus:border-[#2459df] focus:ring-4 focus:ring-blue-100"
+                    disabled={isSubmitting}
                     name="email"
                     onChange={handleChange}
                     placeholder="name@company.com"
@@ -160,7 +165,9 @@ const Login = () => {
                 <div className="relative">
                   <FontAwesomeIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-base text-slate-500" icon={faLock} />
                   <input
+                    autoComplete="current-password"
                     className="h-12 w-full rounded-lg border border-slate-300 bg-white pl-11 pr-12 text-base text-slate-800 outline-none transition placeholder:text-slate-500 focus:border-[#2459df] focus:ring-4 focus:ring-blue-100"
+                    disabled={isSubmitting}
                     name="password"
                     onChange={handleChange}
                     placeholder="Password"

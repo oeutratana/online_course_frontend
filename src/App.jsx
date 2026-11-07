@@ -18,6 +18,7 @@ import Popular from './Components/Views/Popular'
 import Login from './Components/Layout/Login'
 import Register from './Components/Layout/Register'
 import ForgotPassword from './Components/Layout/ForgotPassword'
+import CheckEmail from './Components/Layout/CheckEmail'
 import ResetPassword from './Components/Layout/ResetPassword'
 import GoogleCallback from './Components/Layout/GoogleCallback'
 import CardDetail from './Components/Layout/CardDetail'
@@ -71,6 +72,7 @@ const isStandalonePath = (pathname) => (
   pathname === '/login'
   || pathname === '/register'
   || pathname === '/forgot-password'
+  || pathname === '/check-email'
   || pathname === '/reset-password'
   || pathname === '/auth/google/callback'
   || pathname === '/admin'
@@ -152,6 +154,7 @@ const AuthenticatedApp = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/check-email" element={<CheckEmail />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/auth/google/callback" element={<GoogleCallback />} />
         <Route path="/course-detail" element={<CardDetail />} />

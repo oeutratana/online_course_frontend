@@ -108,13 +108,14 @@ export class ApiError extends Error {
 }
 
 export const apiRequest = async (path, options = {}) => {
+  const { requireJson = false, ...fetchOptions } = options
   const authMode = localStorage.getItem('auth_mode')
-  const includeCredentials = options.includeCredentials ?? authMode === 'cookie'
-  const includeXsrf = includeCredentials && options.includeXsrf !== false
-  const isFormData = options.body instanceof FormData
+  const includeCredentials = fetchOptions.includeCredentials ?? authMode === 'cookie'
+  const includeXsrf = includeCredentials && fetchOptions.includeXsrf !== false
+  const isFormData = fetchOptions.body instanceof FormData
   const headers = {
     ...getAuthHeaders({ includeXsrf }),
-    ...options.headers,
+    ...fetchOptions.headers,
   }
 
   if (!isFormData) {
@@ -122,11 +123,12 @@ export const apiRequest = async (path, options = {}) => {
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
+    ...fetchOptions,
     credentials: includeCredentials ? 'include' : 'omit',
     headers,
   })
 
+  const contentType = response.headers.get('content-type') || ''
   const data = await response.json().catch(() => ({}))
 
   if (!response.ok) {
@@ -136,6 +138,14 @@ export const apiRequest = async (path, options = {}) => {
 
     throw new ApiError(
       getErrorMessage(data, 'Something went wrong. Please try again.'),
+      response.status,
+      data,
+    )
+  }
+
+  if (requireJson && !contentType.includes('application/json')) {
+    throw new ApiError(
+      'The server returned an unexpected response. Please check the API URL and try again.',
       response.status,
       data,
     )
@@ -198,6 +208,7 @@ export const authRequest = async (path, body) => {
         body: JSON.stringify(body),
         includeCredentials: false,
         includeXsrf: false,
+        requireJson: true,
       })
     } catch (tokenError) {
       if (!tokenError.message.includes('Session store not set')) {
@@ -213,6 +224,7 @@ export const authRequest = async (path, body) => {
       method: 'POST',
       body: JSON.stringify(body),
       includeCredentials: true,
+      requireJson: true,
     })
 
     if (!localStorage.getItem('auth_token')) {
@@ -227,6 +239,7 @@ export const authRequest = async (path, body) => {
         body: JSON.stringify(body),
         includeCredentials: false,
         includeXsrf: false,
+        requireJson: true,
       })
     }
 
@@ -314,20 +327,23 @@ export const exchangeGoogleCode = (code) => apiRequest('/auth/google/exchange', 
   body: JSON.stringify({ code }),
   includeCredentials: false,
   includeXsrf: false,
+  requireJson: true,
 })
 
-export const requestPasswordReset = (email) => apiRequest('/auth/forgot-password', {
+export const requestPasswordReset = (email) => apiRequest('/forgot-password', {
   method: 'POST',
   body: JSON.stringify({ email }),
   includeCredentials: false,
   includeXsrf: false,
+  requireJson: true,
 })
 
-export const resetPassword = ({ token, email, password, password_confirmation }) => apiRequest('/auth/reset-password', {
+export const resetPassword = ({ token, email, password, password_confirmation }) => apiRequest('/reset-password', {
   method: 'POST',
   body: JSON.stringify({ token, email, password, password_confirmation }),
   includeCredentials: false,
   includeXsrf: false,
+  requireJson: true,
 })
 
 export const getRedirectPath = () => {
